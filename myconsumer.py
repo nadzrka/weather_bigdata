@@ -1,72 +1,137 @@
-from kafka import KafkaConsumer
+import os
 import json
-import numpy as np
 import requests
+import numpy as np
+import pandas as pd
 from joblib import load
+from kafka import KafkaConsumer
+from cassandra.cluster import Cluster
 
-# ================= CONFIG =================
-TOPIC_NAME = "weather_realtime"
-KAFKA_BOOTSTRAP = ["localhost:9092"]
+# ===========================
+# CONFIG
+# ===========================
+TOPIC = "weather_realtime"
+BOOTSTRAP_SERVERS = ["localhost:9092"]
 
-BOT_TOKEN = "8374103851:AAE_0rJqVKpCsuIDLtJu4KeHFyWnmdR_AGw"
-CHAT_ID = 5149097504
+# Real-time model (Option C): per-message, TANPA window 48 jam
+MODEL_BUNDLE_PATH = "temp_rf_realtime.pkl"  # output dari train_model_realtime.py
 
-model = load("temp_rf_multifeature.pkl")
-scaler = load("scaler.pkl")
+# Optional Telegram (kalau tidak diset, hanya print)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
 
-# ================= TELEGRAM =================
-def send_telegram(msg):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": CHAT_ID, "text": msg})
+# Anti-spam telegram
+COOLDOWN_SECONDS = 60  # 1 menit
+last_sent_ts = 0.0
 
-# ================= KAFKA CONSUMER =================
-consumer = KafkaConsumer(
-    TOPIC_NAME,
-    bootstrap_servers=KAFKA_BOOTSTRAP,
-    auto_offset_reset="latest",
-    group_id="weather_realtime_group",
-    value_deserializer=lambda v: json.loads(v.decode("utf-8"))
+# ===========================
+# LOAD MODEL BUNDLE
+# ===========================
+bundle = load(MODEL_BUNDLE_PATH)
+model = bundle["model"]
+feature_cols = bundle["feature_cols"]
+
+print("=" * 60)
+print("🌤️ REAL-TIME WEATHER CONSUMER (Option C: per-message model)")
+print("=" * 60)
+print(f"📡 Topic: {TOPIC}")
+print(f"🧠 Model: {MODEL_BUNDLE_PATH}")
+print(f"📌 Features: {feature_cols}")
+print(f"📨 Telegram enabled: {TELEGRAM_ENABLED}\n")
+
+# ===========================
+# CASSANDRA
+# ===========================
+cluster = Cluster(["127.0.0.1"])
+session = cluster.connect("weather")
+
+insert_stmt = session.prepare(
+    "INSERT INTO weather_data (city, datetime, temp, rain, humidity, wind_speed) VALUES (?, ?, ?, ?, ?, ?)"
 )
 
-print("🌦️ Weather REALTIME Consumer started...\n")
+def send_telegram(msg: str):
+    global last_sent_ts
+    if not TELEGRAM_ENABLED:
+        return
+    now = pd.Timestamp.now().timestamp()
+    if now - last_sent_ts < COOLDOWN_SECONDS:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": msg}
+    try:
+        requests.post(url, json=payload, timeout=10)
+        last_sent_ts = now
+    except Exception:
+        pass
 
-# ================= MAIN LOOP =================
+# ===========================
+# KAFKA CONSUMER
+# ===========================
+consumer = KafkaConsumer(
+    TOPIC,
+    bootstrap_servers=BOOTSTRAP_SERVERS,
+    value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+    auto_offset_reset="latest",
+    enable_auto_commit=True,
+    group_id="weather_realtime_consumer_modelC",
+)
+
 for message in consumer:
-    data = message.value
+    payload = message.value
 
-    if not isinstance(data, dict):
-        continue
+    # Parse time: pakai waktu dari API (payload["datetime"])
+    # Jika mau event time yang lebih detail, bisa pakai fetched_at.
+    dt = pd.to_datetime(payload.get("fetched_at") or payload.get("datetime"), errors="coerce")
+    if pd.isna(dt):
+        dt = pd.Timestamp.now()
+    dt_py = dt.to_pydatetime()
 
-    city = data["city"]
-    time_now = data["datetime"]
+    # Save raw observation
+    try:
+        session.execute(
+            insert_stmt,
+            (
+                payload.get("city", "Unknown"),
+                dt_py,
+                float(payload["temp"]),
+                float(payload["rain"]),
+                float(payload["humidity"]),
+                float(payload["wind_speed"]),
+            ),
+        )
+    except Exception as e:
+        print(f"❌ Cassandra insert error: {e}")
 
-    temp_now = float(data["temp"])
-    rain_now = float(data["rain"])
-    hum_now = float(data["humidity"])
-    wind_now = float(data["wind_speed"])
+    # Build features (no lags, no window)
+    feat = {
+        "temp": float(payload["temp"]),
+        "rain": float(payload["rain"]),
+        "humidity": float(payload["humidity"]),
+        "wind_speed": float(payload["wind_speed"]),
+        "hour": int(dt.hour),
+        "dayofweek": int(dt.dayofweek),
+    }
 
-    # ================= STATUS =================
-    if rain_now > 0.1:
-        status = "HUJAN"
-        icon = "🌧️"
-    elif temp_now > 35:
-        status = "PANAS EKSTRIM"
-        icon = "🔥"
-    else:
-        status = "NORMAL"
-        icon = "🌤️"
+    X = np.array([[feat[c] for c in feature_cols]], dtype=float)
+    pred_next = float(model.predict(X)[0])
 
-    msg = (
-        f"{icon} CUACA REALTIME\n\n"
-        f"Kota: {city}\n"
-        f"Waktu: {time_now}\n\n"
-        f"Suhu: {temp_now:.2f} °C\n"
-        f"Hujan: {rain_now:.2f} mm\n"
-        f"Kelembapan: {hum_now:.0f} %\n"
-        f"Angin: {wind_now:.2f} km/h\n"
-        f"Status: {status}"
+    now_str = pd.Timestamp.now().strftime("%H:%M:%S")
+    print(
+        f"✅ [{now_str}] {payload.get('city','')} "
+        f"temp_now={feat['temp']:.2f}°C → pred_next={pred_next:.2f}°C "
+        f"(dt={dt.strftime('%Y-%m-%d %H:%M:%S')})"
     )
 
-    send_telegram(msg)
-    print(f"[{city}] Telegram sent | {status}")
+    # Optional alert example: kalau pred naik/turun ≥ 1°C
+    delta = pred_next - feat["temp"]
+    if abs(delta) >= 1.0:
+        direction = "naik" if delta > 0 else "turun"
+        msg = (
+            f"🌤️ Weather Alert ({payload.get('city','')})\n"
+            f"Suhu sekarang: {feat['temp']:.2f}°C\n"
+            f"Prediksi next tick: {pred_next:.2f}°C ({direction} {abs(delta):.2f}°C)\n"
+            f"Hujan: {feat['rain']}mm | RH: {feat['humidity']}% | Wind: {feat['wind_speed']}km/h"
+        )
+        send_telegram(msg)
 

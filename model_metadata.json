@@ -1,0 +1,19 @@
+{
+  "look_back": 48,
+  "feature_cols": [
+    "temp",
+    "rain",
+    "humidity",
+    "wind_speed",
+    "hour",
+    "dayofweek",
+    "temp_lag1",
+    "temp_lag3",
+    "temp_lag6"
+  ],
+  "n_features": 9,
+  "mae": 0.28089356814669303,
+  "rmse": 0.5196419726660968,
+  "r2": 0.9772343366774585,
+  "trained_at": "2025-12-24T14:35:24.821637"
+}
