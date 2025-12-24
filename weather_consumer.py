@@ -29,7 +29,7 @@ consumer = KafkaConsumer(
 # ===========================
 # CONNECT TO CASSANDRA
 # ===========================
-print("🗄️ Connecting to Cassandra...")
+print(" Connecting to Cassandra...")
 cluster = Cluster([CASSANDRA_HOST])
 session = cluster.connect()
 
@@ -60,8 +60,8 @@ insert_query = session.prepare("""
     VALUES (?, ?, ?, ?, ?, ?)
 """)
 
-print("✅ Connected to Cassandra")
-print(f"📡 Listening to Kafka topic: {TOPIC_NAME}\n")
+print(" Connected to Cassandra")
+print(f" Listening to Kafka topic: {TOPIC_NAME}\n")
 
 # ===========================
 # MAIN LOOP
@@ -69,7 +69,7 @@ print(f"📡 Listening to Kafka topic: {TOPIC_NAME}\n")
 counter = 0
 
 print("=" * 60)
-print("💾 SAVING DATA TO CASSANDRA")
+print(" SAVING DATA TO CASSANDRA")
 print("=" * 60)
 
 for message in consumer:
@@ -95,7 +95,7 @@ for message in consumer:
         counter += 1
 
         if counter % 100 == 0:
-            print(f"💾 Saved {counter} records...")
+            print(f" Saved {counter} records...")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f" Error: {e}")

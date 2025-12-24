@@ -36,11 +36,11 @@ def fetch_hourly_history(lat, lon, start_date, end_date):
         "&timezone=Asia/Jakarta"
     )
     
-    print(f"🌐 Fetching: {url}")
+    print(f" Fetching: {url}")
     r = requests.get(url, timeout=30)
     
     if r.status_code != 200:
-        print(f"❌ HTTP {r.status_code}")
+        print(f" HTTP {r.status_code}")
         print(f"Response: {r.text[:500]}")
         r.raise_for_status()
     
@@ -51,18 +51,18 @@ def fetch_hourly_history(lat, lon, start_date, end_date):
 # ===========================
 def main():
     print("=" * 60)
-    print("📦 BATCH WEATHER PRODUCER")
+    print(" BATCH WEATHER PRODUCER")
     print("=" * 60)
-    print(f"📍 City: {CITY} ({LAT}, {LON})")
-    print(f"📅 Loading {DAYS_BACK} days of historical data")
-    print(f"📡 Kafka Topic: {TOPIC}\n")
+    print(f" City: {CITY} ({LAT}, {LON})")
+    print(f"Loading {DAYS_BACK} days of historical data")
+    print(f" Kafka Topic: {TOPIC}\n")
 
     # Calculate date range
     today = datetime.now().date()
     end = today - timedelta(days=ARCHIVE_DELAY_DAYS)
     start = end - timedelta(days=DAYS_BACK)
     
-    print(f"📆 Date Range: {start} to {end}\n")
+    print(f" Date Range: {start} to {end}\n")
 
     # Initialize Kafka Producer
     producer = KafkaProducer(
@@ -86,11 +86,11 @@ def main():
         n = min(len(times), len(temps), len(rains), len(hums), len(winds))
         
         if n == 0:
-            print("❌ No data received from API!")
+            print(" No data received from API!")
             return
 
-        print(f"✅ Fetched {n} hourly records")
-        print(f"🚀 Sending to Kafka...\n")
+        print(f" Fetched {n} hourly records")
+        print(f"Sending to Kafka...\n")
 
         success_count = 0
 
@@ -110,21 +110,21 @@ def main():
             if (i + 1) % 100 == 0:
                 producer.flush()
                 progress = (i + 1) / n * 100
-                print(f"📊 Progress: {i+1}/{n} ({progress:.1f}%)")
+                print(f" Progress: {i+1}/{n} ({progress:.1f}%)")
 
             time.sleep(SLEEP_BETWEEN_SEND)
 
         producer.flush()
         
         print("\n" + "=" * 60)
-        print("✅ BATCH LOAD COMPLETE")
+        print(" BATCH LOAD COMPLETE")
         print("=" * 60)
-        print(f"✅ Success: {success_count}")
-        print(f"📊 Total: {n}")
+        print(f" Success: {success_count}")
+        print(f" Total: {n}")
         print("=" * 60)
 
     except Exception as e:
-        print(f"\n❌ FATAL ERROR: {e}")
+        print(f"\n FATAL ERROR: {e}")
         raise
     
     finally:

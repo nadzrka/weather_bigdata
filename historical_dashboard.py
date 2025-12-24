@@ -50,8 +50,8 @@ def load_models():
         
         return model, scaler, metadata
     except Exception as e:
-        st.error(f"❌ Error loading models: {e}")
-        st.info("💡 Run: python3 train_model_dashboard.py")
+        st.error(f"Error loading models: {e}")
+        st.info("Run: python3 train_model_dashboard.py")
         st.stop()
 
 model, scaler, metadata = load_models()
@@ -66,8 +66,8 @@ def get_cassandra_session():
         session = cluster.connect("weather")
         return session
     except Exception as e:
-        st.error(f"❌ Cannot connect to Cassandra: {e}")
-        st.info("💡 Make sure Cassandra is running")
+        st.error(f"Cannot connect to Cassandra: {e}")
+        st.info("Make sure Cassandra is running")
         st.stop()
 
 session = get_cassandra_session()
@@ -112,7 +112,7 @@ end_date = st.sidebar.date_input(
 
 if metadata:
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🤖 Model Info")
+    st.sidebar.markdown("###Model Info")
     st.sidebar.metric("MAE", f"{metadata.get('mae', 0):.2f}°C")
     st.sidebar.metric("RMSE", f"{metadata.get('rmse', 0):.2f}°C")
     st.sidebar.metric("R²", f"{metadata.get('r2', 0):.3f}")
@@ -167,7 +167,7 @@ df["temp_lag6"] = df["temp"].shift(6)
 df = df.dropna().copy()
 
 if len(df) < LOOK_BACK:
-    st.warning(f"⚠️ Need at least {LOOK_BACK} rows")
+    st.warning(f"Need at least {LOOK_BACK} rows")
     st.stop()
 
 # =============================
@@ -176,23 +176,23 @@ if len(df) < LOOK_BACK:
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("📊 Records", len(df))
+    st.metric("Records", len(df))
 
 with col2:
-    st.metric("🌡️ Avg Temp", f"{df['temp'].mean():.1f}°C")
+    st.metric("Avg Temp", f"{df['temp'].mean():.1f}°C")
 
 with col3:
-    st.metric("🔥 Max Temp", f"{df['temp'].max():.1f}°C")
+    st.metric("Max Temp", f"{df['temp'].max():.1f}°C")
 
 with col4:
-    st.metric("☔ Total Rain", f"{df['rain'].sum():.1f}mm")
+    st.metric("Total Rain", f"{df['rain'].sum():.1f}mm")
 
 st.markdown("---")
 
 # =============================
 # TEMPERATURE CHART
 # =============================
-st.subheader("🌡️ Temperature Over Time")
+st.subheader("Temperature Over Time")
 
 temp_chart = alt.Chart(df).mark_line(color="#FF4B4B", strokeWidth=2).encode(
     x=alt.X("datetime:T", title="Date/Time"),
@@ -208,7 +208,7 @@ st.altair_chart(temp_chart, use_container_width=True)
 # =============================
 # ENVIRONMENTAL FACTORS
 # =============================
-st.subheader("🌧️ Environmental Factors")
+st.subheader("Environmental Factors")
 
 env_df = df.melt(
     id_vars="datetime",
@@ -231,7 +231,7 @@ st.markdown("---")
 # =============================
 # ML PREDICTION
 # =============================
-st.subheader("🤖 Next Hour Prediction")
+st.subheader("Next Hour Prediction")
 
 try:
     features = df[FEATURE_COLS].astype(float).values
@@ -247,28 +247,28 @@ try:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("🌡️ Current", f"{current_temp:.1f}°C")
+        st.metric("Current", f"{current_temp:.1f}°C")
     
     with col2:
-        st.metric("🔮 Predicted", f"{predicted_temp:.1f}°C", delta=f"{diff:+.1f}°C")
+        st.metric("Predicted", f"{predicted_temp:.1f}°C", delta=f"{diff:+.1f}°C")
     
     with col3:
         if predicted_temp > 35:
-            st.error("🔥 High Temperature!")
+            st.error("High Temperature!")
         elif predicted_temp < 20:
-            st.info("❄️ Cool")
+            st.info("Cool")
         else:
-            st.success("✅ Normal")
+            st.success("Normal")
 
 except Exception as e:
-    st.error(f"❌ Prediction error: {e}")
+    st.error(f"Prediction error: {e}")
 
 st.markdown("---")
 
 # =============================
 # ACTUAL vs PREDICTED (24H)
 # =============================
-st.subheader("📊 Actual vs Predicted (Last 24 Hours)")
+st.subheader("Actual vs Predicted (Last 24 Hours)")
 
 try:
     end_dt = df["datetime"].max()
@@ -324,7 +324,7 @@ try:
             st.metric("✅ Accuracy", f"{accuracy:.1f}%")
     
 except Exception as e:
-    st.error(f"❌ Comparison error: {e}")
+    st.error(f"Comparison error: {e}")
 
 # =============================
 # RAW DATA

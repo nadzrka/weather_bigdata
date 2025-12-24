@@ -28,11 +28,11 @@ producer = KafkaProducer(
 )
 
 print("=" * 60)
-print("🌤️ REAL-TIME WEATHER PRODUCER (5s)")
+print(" REAL-TIME WEATHER PRODUCER (5s)")
 print("=" * 60)
-print(f"📍 City: {CITY} ({LAT}, {LON})")
-print(f"⏱️ Interval: {FETCH_INTERVAL}s")
-print(f"📡 Topic: {TOPIC}\n")
+print(f" City: {CITY} ({LAT}, {LON})")
+print(f"Interval: {FETCH_INTERVAL}s")
+print(f" Topic: {TOPIC}\n")
 
 MAX_RETRIES = 3
 
@@ -74,24 +74,24 @@ while True:
             record_metadata = future.get(timeout=10)
 
             print(
-                f"✅ [{datetime.now().strftime('%H:%M:%S')}] "
+                f" [{datetime.now().strftime('%H:%M:%S')}] "
                 f"{payload['temp']}°C | {payload['rain']}mm | "
                 f"Partition: {record_metadata.partition}"
             )
             break
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ API Error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+            print(f" API Error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
             if attempt == MAX_RETRIES - 1:
                 print("⚠️ Max retries reached")
             else:
                 time.sleep(2)
 
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f" Error: {e}")
             break
 
-    print(f"⏳ Next fetch in {FETCH_INTERVAL}s...\n")
+    print(f" Next fetch in {FETCH_INTERVAL}s...\n")
     elapsed = time.time() - loop_start
     time.sleep(max(0, FETCH_INTERVAL - elapsed))
 

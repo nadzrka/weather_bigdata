@@ -33,12 +33,12 @@ model = bundle["model"]
 feature_cols = bundle["feature_cols"]
 
 print("=" * 60)
-print("🌤️ REAL-TIME WEATHER CONSUMER (Option C: per-message model)")
+print("REAL-TIME WEATHER CONSUMER (Option C: per-message model)")
 print("=" * 60)
-print(f"📡 Topic: {TOPIC}")
-print(f"🧠 Model: {MODEL_BUNDLE_PATH}")
-print(f"📌 Features: {feature_cols}")
-print(f"📨 Telegram enabled: {TELEGRAM_ENABLED}\n")
+print(f"Topic: {TOPIC}")
+print(f"Model: {MODEL_BUNDLE_PATH}")
+print(f"Features: {feature_cols}")
+print(f"Telegram enabled: {TELEGRAM_ENABLED}\n")
 
 # ===========================
 # CASSANDRA
@@ -101,7 +101,7 @@ for message in consumer:
             ),
         )
     except Exception as e:
-        print(f"❌ Cassandra insert error: {e}")
+        print(f" Cassandra insert error: {e}")
 
     # Build features (no lags, no window)
     feat = {
@@ -118,7 +118,7 @@ for message in consumer:
 
     now_str = pd.Timestamp.now().strftime("%H:%M:%S")
     print(
-        f"✅ [{now_str}] {payload.get('city','')} "
+        f" [{now_str}] {payload.get('city','')} "
         f"temp_now={feat['temp']:.2f}°C → pred_next={pred_next:.2f}°C "
         f"(dt={dt.strftime('%Y-%m-%d %H:%M:%S')})"
     )
@@ -128,7 +128,7 @@ for message in consumer:
     if abs(delta) >= 1.0:
         direction = "naik" if delta > 0 else "turun"
         msg = (
-            f"🌤️ Weather Alert ({payload.get('city','')})\n"
+            f" Weather Alert ({payload.get('city','')})\n"
             f"Suhu sekarang: {feat['temp']:.2f}°C\n"
             f"Prediksi next tick: {pred_next:.2f}°C ({direction} {abs(delta):.2f}°C)\n"
             f"Hujan: {feat['rain']}mm | RH: {feat['humidity']}% | Wind: {feat['wind_speed']}km/h"

@@ -30,20 +30,20 @@ FEATURE_COLS = [
 # ===========================
 # LOAD DATA
 # ===========================
-print("📊 Connecting to Cassandra...")
+print(" Connecting to Cassandra...")
 cluster = Cluster(["127.0.0.1"])
 session = cluster.connect("weather")
 
 query = "SELECT city, datetime, temp, rain, humidity, wind_speed FROM weather_data"
-print("📥 Loading data...")
+print(" Loading data...")
 df = pd.DataFrame(session.execute(query))
 
 if df.empty:
-    print("❌ No data in Cassandra!")
-    print("💡 Pastikan batch pipeline sudah jalan (producer+consumer) dan data masuk ke weather_data.")
+    print(" No data in Cassandra!")
+    print(" Pastikan batch pipeline sudah jalan (producer+consumer) dan data masuk ke weather_data.")
     raise SystemExit(1)
 
-print(f"✅ Loaded {len(df)} rows")
+print(f" Loaded {len(df)} rows")
 
 # ===========================
 # PREPROCESSING
@@ -62,7 +62,7 @@ df["temp_lag6"] = df.groupby("city")["temp"].shift(6)
 # df["temp_next"] = df.groupby("city")["temp"].shift(-1)
 
 df = df.dropna()
-print(f"✅ After preprocessing: {len(df)} rows")
+print(f" After preprocessing: {len(df)} rows")
 
 # ===========================
 # CREATE SEQUENCES
@@ -89,7 +89,7 @@ def create_sequences(group_df: pd.DataFrame, look_back: int):
 X_train_list, y_train_list = [], []
 X_test_list, y_test_list = [], []
 
-print("🔄 Creating sequences + time split per city...")
+print(" Creating sequences + time split per city...")
 used_cities = 0
 
 for city, group in df.groupby("city"):
@@ -112,7 +112,7 @@ for city, group in df.groupby("city"):
     used_cities += 1
 
 if used_cities == 0:
-    print("❌ Tidak ada kota yang memenuhi syarat untuk training.")
+    print(" Tidak ada kota yang memenuhi syarat untuk training.")
     raise SystemExit(1)
 
 X_train = np.concatenate(X_train_list, axis=0)
@@ -120,8 +120,8 @@ y_train = np.concatenate(y_train_list, axis=0)
 X_test = np.concatenate(X_test_list, axis=0)
 y_test = np.concatenate(y_test_list, axis=0)
 
-print(f"\n✅ Total train sequences: {len(X_train)}  | shape={X_train.shape}")
-print(f"✅ Total test  sequences: {len(X_test)}   | shape={X_test.shape}")
+print(f"\n Total train sequences: {len(X_train)}  | shape={X_train.shape}")
+print(f" Total test  sequences: {len(X_test)}   | shape={X_test.shape}")
 
 # ===========================
 # SCALE (FIT ONLY TRAIN) & FLATTEN
@@ -143,12 +143,12 @@ X_test_scaled = X_test_scaled.reshape(n_test, n_timesteps, n_features)
 X_train_flat = X_train_scaled.reshape(n_train, -1)
 X_test_flat = X_test_scaled.reshape(n_test, -1)
 
-print(f"✅ Flattened: train={X_train_flat.shape}, test={X_test_flat.shape}")
+print(f" Flattened: train={X_train_flat.shape}, test={X_test_flat.shape}")
 
 # ===========================
 # TRAIN MODEL
 # ===========================
-print("\n🤖 Training Random Forest...")
+print("\n Training Random Forest...")
 model = RandomForestRegressor(
     n_estimators=200,
     max_depth=20,
@@ -168,7 +168,7 @@ mae = mean_absolute_error(y_test, y_pred)
 rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 r2 = r2_score(y_test, y_pred)
 
-print("\n📈 Model Performance (time-based split):")
+print("\n Model Performance (time-based split):")
 print(f"   MAE:  {mae:.3f} °C")
 print(f"   RMSE: {rmse:.3f} °C")
 print(f"   R²:   {r2:.3f}")
@@ -197,8 +197,8 @@ metadata = {
 with open("model_metadata.json", "w") as f:
     json.dump(metadata, f, indent=2)
 
-print("\n✅ Models saved:")
+print("\n Models saved:")
 print("   - temp_rf_multifeature.pkl")
 print("   - scaler.pkl")
 print("   - model_metadata.json")
-print("✅ Training complete!")
+print(" Training complete!")

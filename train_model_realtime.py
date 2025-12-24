@@ -23,20 +23,20 @@ FEATURE_COLS = [
 # ===========================
 # LOAD DATA
 # ===========================
-print("📊 Connecting to Cassandra...")
+print(" Connecting to Cassandra...")
 cluster = Cluster(["127.0.0.1"])
 session = cluster.connect("weather")
 
 query = "SELECT city, datetime, temp, rain, humidity, wind_speed FROM weather_data"
-print("📥 Loading data...")
+print(" Loading data...")
 df = pd.DataFrame(session.execute(query))
 
 if df.empty:
-    print("❌ No data in Cassandra!")
-    print("💡 Run: python3 weather_producer.py")
+    print(" No data in Cassandra!")
+    print(" Run: python3 weather_producer.py")
     exit(1)
 
-print(f"✅ Loaded {len(df)} rows")
+print(f" Loaded {len(df)} rows")
 
 # ===========================
 # PREPROCESSING
@@ -50,7 +50,7 @@ df["temp_next"] = df.groupby("city")["temp"].shift(-1)
 
 df = df.dropna()
 
-print(f"✅ After preprocessing: {len(df)} rows")
+print(f" After preprocessing: {len(df)} rows")
 
 # ===========================
 # PREPARE DATA
@@ -68,7 +68,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-print("\n🤖 Training Random Forest (Real-Time Model)...")
+print("\n Training Random Forest (Real-Time Model)...")
 model = RandomForestRegressor(
     n_estimators=100,
     max_depth=15,
@@ -88,7 +88,7 @@ mae = mean_absolute_error(y_test, y_pred)
 rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 r2 = r2_score(y_test, y_pred)
 
-print("\n📈 Model Performance:")
+print("\n Model Performance:")
 print(f"   MAE:  {mae:.3f} °C")
 print(f"   RMSE: {rmse:.3f} °C")
 print(f"   R²:   {r2:.3f}")
@@ -107,6 +107,6 @@ bundle = {
 
 joblib.dump(bundle, "temp_rf_realtime.pkl")
 
-print("\n✅ Model saved: temp_rf_realtime.pkl")
+print("\n Model saved: temp_rf_realtime.pkl")
 print("   (for real-time streaming, no lag features)")
-print("\n✅ Training complete!")
+print("\n Training complete!")
